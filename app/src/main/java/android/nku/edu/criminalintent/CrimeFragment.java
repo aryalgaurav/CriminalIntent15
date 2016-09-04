@@ -1,14 +1,18 @@
 package android.nku.edu.criminalintent;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.ContactsContract;
 import android.support.v4.app.Fragment;
 import android.os.Bundle;
 import android.support.v4.app.FragmentManager;
+import android.support.v4.app.ShareCompat;
+import android.support.v4.content.ContextCompat;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.text.format.DateFormat;
@@ -42,6 +46,7 @@ public class CrimeFragment extends Fragment {
 	private CheckBox mSolvedCheckBox;
     private Button mReportButton;
     private Button mSuspectButton;
+    private Button mSuspectCallButton;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -88,12 +93,12 @@ public class CrimeFragment extends Fragment {
         mReportButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(Intent.ACTION_SEND);
-                intent.setType("text/plain");
-                intent.putExtra(Intent.EXTRA_TEXT, getCrimeReport());
-                intent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.crime_report_subject));
-                intent = Intent.createChooser(intent, getString(R.string.send_report));
-                startActivity(intent);
+                ShareCompat.IntentBuilder.from(getActivity())
+                        .setType("text/plain")
+                        .setText(getCrimeReport())
+                        .setSubject(getString(R.string.crime_report_subject))
+                        .setChooserTitle(getString(R.string.send_report))
+                        .startChooser();
             }
         });
 
@@ -111,6 +116,19 @@ public class CrimeFragment extends Fragment {
         if (mCrime.getSuspect() != null) {
             mSuspectButton.setText(mCrime.getSuspect());
         }
+
+        PackageManager packageManager = getActivity().getPackageManager();
+        if (packageManager.resolveActivity(pickContact,PackageManager.MATCH_DEFAULT_ONLY) == null) {
+            mSuspectButton.setEnabled(false);
+        }
+
+        mSuspectCallButton = (Button) view.findViewById(R.id.crime_report_call);
+        mSuspectCallButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+            }
+        });
 
         mTitleField = (EditText) view.findViewById(R.id.crime_title);
         mTitleField.setText(mCrime.getTitle());
@@ -177,7 +195,7 @@ public class CrimeFragment extends Fragment {
             Uri contactUri = data.getData();
 
             // Specify which fields you want your query to return values for.
-            String[] queryFields = new String[]{ContactsContract.Contacts.DISPLAY_NAME};
+            String[] queryFields = new String[]{ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.Contacts._ID};
 
             // Perform your query - the contactUri acts like a where clause.
             ContentResolver resolver = getActivity().getContentResolver();
@@ -191,8 +209,10 @@ public class CrimeFragment extends Fragment {
                 cursor.moveToFirst();
 
                 String suspect = cursor.getString(0);
+                long phoneNumber = cursor.getLong(1);
                 mCrime.setSuspect(suspect);
                 mSuspectButton.setText(suspect);
+                mSuspectCallButton.setText(Long.toString(phoneNumber));
             } finally {
                 cursor.close();
             }
