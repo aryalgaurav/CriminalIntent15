@@ -39,6 +39,7 @@ public class CrimeFragment extends Fragment {
     private static final String DIALOG_DATE = "DialogDate";
     private static final int REQUEST_DATE = 0;
     private static final int REQUEST_CONTACT = 1;
+    private static final int REQUEST_PERMISSION = 3;
 
     private Crime mCrime;
     private EditText mTitleField;
@@ -108,8 +109,13 @@ public class CrimeFragment extends Fragment {
         mSuspectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
-                startActivityForResult(pickContact, REQUEST_CONTACT);
+                int permissionCheck = ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.READ_CONTACTS);
+                if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+                    CrimeFragment.this.requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, REQUEST_PERMISSION);
+                }
+                else {
+                    startActivityForResult(pickContact, REQUEST_CONTACT);
+                }
             }
         });
 
@@ -126,6 +132,9 @@ public class CrimeFragment extends Fragment {
         mSuspectCallButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                //this part is working correctly now.
+                final Intent callPhoneIntent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + mCrime.getPhoneNumber()));
+                startActivity(callPhoneIntent);
 
             }
         });
@@ -201,20 +210,42 @@ public class CrimeFragment extends Fragment {
             ContentResolver resolver = getActivity().getContentResolver();
             Cursor cursor = resolver.query(contactUri, queryFields, null, null, null);
 
+            if (cursor == null || cursor.getCount() == 0) {
+                return;
+            }
+
             try {
-                if (cursor.getCount() == 0) {
-                    return;
-                }
-                // Pull out the first column of the first row of data - that is your suspect's name.
                 cursor.moveToFirst();
 
-                String suspect = cursor.getString(0);
-                long phoneNumber = cursor.getLong(1);
+                String suspect = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
+                String id = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID));
+
                 mCrime.setSuspect(suspect);
+
+                Cursor phones = resolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, ContactsContract.CommonDataKinds.Phone.CONTACT_ID +" = "+ id, null, null);
+                phones.moveToFirst();
+                String phoneNumber = phones.getString(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+
+                mCrime.setPhoneNumber(phoneNumber);
                 mSuspectButton.setText(suspect);
-                mSuspectCallButton.setText(Long.toString(phoneNumber));
+
+                mSuspectCallButton.setText(phoneNumber);
+
             } finally {
                 cursor.close();
+            }
+        }
+    }
+
+    /**
+     * This is only required for API level 23 and above.
+     * I had to do this because of the runtime permission feature introduced in Android API 23+*/
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == REQUEST_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Intent pickContact = new Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
+                startActivityForResult(pickContact, REQUEST_CONTACT);
             }
         }
     }

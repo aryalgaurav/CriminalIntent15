@@ -12,7 +12,7 @@ public class Crime {
     private Date mDate;
     private boolean mSolved;
     private String mSuspect;
-    private long phoneNumber;
+    private String mPhoneNumber;
 
     public Crime() {
         mId = UUID.randomUUID();
@@ -60,11 +60,11 @@ public class Crime {
         mSuspect = suspect;
     }
 
-    public long getPhoneNumber() {
-        return phoneNumber;
+    public String getPhoneNumber() {
+        return mPhoneNumber;
     }
 
-    public void setPhoneNumber(long phoneNumber) {
-        this.phoneNumber = phoneNumber;
+    public void setPhoneNumber(String phoneNumber) {
+        this.mPhoneNumber = phoneNumber;
     }
 }
